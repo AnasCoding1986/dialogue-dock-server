@@ -36,6 +36,11 @@ async function run() {
     })
 
     // notification
+    app.get('/notification', async(req,res) => {
+      const result = await notificationCollection.find().toArray();
+      res.send(result);
+    })
+
     app.post('/notification', async(req,res) => {
       const singleNotification = req.body;
       const result = await notificationCollection.insertOne(singleNotification);
