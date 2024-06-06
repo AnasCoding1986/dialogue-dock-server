@@ -27,6 +27,7 @@ async function run() {
     await client.connect();
 
     const allMsgCollection = client.db("DialogueDock").collection("allMsg");
+    const notificationCollection = client.db("DialogueDock").collection("notification");
 
     // allMsg
     app.get('/allMsg', async(req,res) => {
