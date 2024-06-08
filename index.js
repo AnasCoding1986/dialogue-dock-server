@@ -35,6 +35,12 @@ async function run() {
         res.send(result);
     })
 
+    app.post('/allMsg', async(req,res) => {
+      const msg = req.body;
+      const result = await allMsgCollection.insertOne(msg);
+      res.send(result);
+    })
+
     // notification
     app.get('/notification', async(req,res) => {
       const result = await notificationCollection.find().toArray();
