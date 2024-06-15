@@ -2,8 +2,8 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // midddlewire
@@ -106,7 +106,7 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/users/admin/:id',verifyToken,verifyAdmin, async (req, res) => {
+    app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -145,19 +145,23 @@ async function run() {
     // payment intent
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
+
       const amount = parseInt(price*100);
-    
+      console.log(amount,"amount inside the intent");
+
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: "usd",
-        payment_method_types: ['card'],
+        payment_method_types: ['card']
       });
-    
+
       res.send({
         clientSecret: paymentIntent.client_secret,
       });
     });
+
+
 
 
     // Send a ping to confirm a successful connection
