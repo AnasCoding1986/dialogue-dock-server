@@ -106,6 +106,19 @@ async function run() {
       res.send(result)
     })
 
+    app.patch('/users/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const filter = { email: email }; // Update this line
+      const updateDoc = {
+        $set: {
+          membership: 'member'
+        },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+    
+
     app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -147,7 +160,7 @@ async function run() {
       const { price } = req.body;
 
       const amount = parseInt(price*100);
-      console.log(amount,"amount inside the intent");
+      console.log(amount,"amount inside the");
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
