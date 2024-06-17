@@ -117,7 +117,7 @@ async function run() {
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
-    
+
 
     app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
@@ -150,6 +150,23 @@ async function run() {
       res.send(result);
     })
 
+    app.patch('/allMsg/upvote/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = { $inc: { upvote: 1 } };
+      const result = await allMsgCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.patch('/allMsg/downvote/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = { $inc: { downvote: 1 } };
+      const result = await allMsgCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+
     // notification
     app.get('/notification', async (req, res) => {
       const result = await notificationCollection.find().toArray();
@@ -166,8 +183,8 @@ async function run() {
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
 
-      const amount = parseInt(price*100);
-      console.log(amount,"amount inside the");
+      const amount = parseInt(price * 100);
+      console.log(amount, "amount inside the");
 
       // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
