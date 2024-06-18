@@ -31,6 +31,7 @@ async function run() {
     const userCollection = client.db("DialogueDock").collection("users");
     const allMsgCollection = client.db("DialogueDock").collection("allMsg");
     const notificationCollection = client.db("DialogueDock").collection("notification");
+    const commentsCollection = client.db("DialogueDock").collection("comments");
 
     // jwt related
     app.post('/jwt', async (req, res) => {
@@ -165,6 +166,15 @@ async function run() {
       const result = await allMsgCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
+
+
+    // comments
+
+    app.post('/comments', async (req, res) => {
+      const comment = req.body;
+      const result = await commentsCollection.insertOne(comment);
+      res.send(result);
+    })
 
 
     // notification
