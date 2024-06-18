@@ -167,6 +167,14 @@ async function run() {
       res.send(result);
     });
 
+    app.patch('/allMsg/commentsCount/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = { $inc: { commentsCount: 1 } };
+      const result = await allMsgCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
 
     // comments
 
