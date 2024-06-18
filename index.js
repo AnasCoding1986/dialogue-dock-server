@@ -134,9 +134,10 @@ async function run() {
 
     // allMsg
     app.get('/allMsg', async (req, res) => {
-      const result = await allMsgCollection.find().toArray();
-      res.send(result);
-    })
+      const allMessages = await allMsgCollection.find().sort({ postTime: -1 }).toArray();
+      res.send(allMessages);
+  });
+  
 
     app.get('/allMsg/:id', async (req, res) => {
       const id = req.params.id;
@@ -147,9 +148,10 @@ async function run() {
 
     app.post('/allMsg', async (req, res) => {
       const msg = req.body;
+      msg.postTime = new Date().toISOString(); // Add timestamp in ISO format
       const result = await allMsgCollection.insertOne(msg);
       res.send(result);
-    })
+  });  
 
     app.patch('/allMsg/upvote/:id', async (req, res) => {
       const id = req.params.id;
