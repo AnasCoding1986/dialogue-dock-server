@@ -6,10 +6,9 @@ require('dotenv').config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
-// midddlewire
+// Middleware
 app.use(cors());
 app.use(express.json());
-
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.zdajqzn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -25,7 +24,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
+    // Connect the client to the server (optional starting in v4.7)
     await client.connect();
 
     const userCollection = client.db("DialogueDock").collection("users");
@@ -33,18 +32,15 @@ async function run() {
     const notificationCollection = client.db("DialogueDock").collection("notification");
     const commentsCollection = client.db("DialogueDock").collection("comments");
 
-    // jwt related
+    // JWT related
     app.post('/jwt', async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: '1h'
-      });
-      res.send({ token })
-    })
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+      res.send({ token });
+    });
 
-    // middlewire
+    // Middleware to verify token
     const verifyToken = (req, res, next) => {
-      console.log('inside verify token', req.headers);
       if (!req.headers.authorization) {
         return res.status(401).send({ message: 'unauthorized access' });
       }
@@ -55,171 +51,144 @@ async function run() {
         }
         req.decoded = decoded;
         next();
-      })
-    }
+      });
+    };
 
-    // use verifyAdmin after verifyToken
+    // Middleware to verify admin
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
-      const query = { email: email };
-      const user = await userCollection.findOne(query);
-      const isAdmin = user?.role === 'admin';
-      if (!isAdmin) {
+      const user = await userCollection.findOne({ email });
+      if (user?.role !== 'admin') {
         return res.status(403).send({ message: 'forbidden access' });
       }
       next();
-    }
+    };
 
-
-    // users
-    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
-      const result = await userCollection.find().toArray();
-      res.send(result);
-    })
+    // Users routes
+    app.get('/users', verifyToken, async (req, res) => {
+      const users = await userCollection.find().toArray();
+      res.send(users);
+    });
 
     app.get('/users/admin/:email', verifyToken, async (req, res) => {
       const email = req.params.email;
       if (email !== req.decoded.email) {
         return res.status(403).send({ message: 'forbidden access' });
-      };
-
-      const query = { email: email };
-      const user = await userCollection.findOne(query);
-      let admin = false;
-      if (user) {
-        admin = user?.role === 'admin';
       }
-      res.send({ admin });
-    })
+      const user = await userCollection.findOne({ email });
+      res.send({ admin: user?.role === 'admin' });
+    });
 
     app.post('/users', async (req, res) => {
       const user = req.body;
-
-      // insert email if users does not exists
-      const query = { email: user.email };
-      const existingUser = await userCollection.findOne(query);
-
+      const existingUser = await userCollection.findOne({ email: user.email });
       if (existingUser) {
-        return res.send({ message: 'user already exists', insertedId: null })
-      };
-
+        return res.send({ message: 'user already exists', insertedId: null });
+      }
       const result = await userCollection.insertOne(user);
-      res.send(result)
-    })
-
-    app.patch('/users/:email', verifyToken, async (req, res) => {
-      const email = req.params.email;
-      const filter = { email: email }; // Update this line
-      const updateDoc = {
-        $set: {
-          membership: 'member'
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
 
+    app.patch('/users/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const result = await userCollection.updateOne({ email }, { $set: { membership: 'member' } });
+      res.send(result);
+    });
 
     app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: {
-          role: 'admin'
-        },
-      };
-      const result = await userCollection.updateOne(filter, updateDoc);
-      res.send(result)
-    })
+      const result = await userCollection.updateOne({ _id: new ObjectId(id) }, { $set: { role: 'admin' } });
+      res.send(result);
+    });
 
-    // allMsg
+    // allMsg routes
     app.get('/allMsg', async (req, res) => {
       const allMessages = await allMsgCollection.find().sort({ postTime: -1 }).toArray();
       res.send(allMessages);
-  });
-  
+    });
 
     app.get('/allMsg/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await allMsgCollection.findOne(query);
-      res.send(result)
-    })
+      const message = await allMsgCollection.findOne({ _id: new ObjectId(id) });
+      res.send(message);
+    });
 
-    app.post('/allMsg', async (req, res) => {
+    // Add this new route for message count by email
+    app.get('/allMsg/count/:email', verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const count = await allMsgCollection.countDocuments({ email });
+      res.send({ count });
+    });
+
+    app.post('/allMsg', verifyToken, async (req, res) => {
       const msg = req.body;
-      msg.postTime = new Date().toISOString(); // Add timestamp in ISO format
+      const email = req.decoded.email;
+      const user = await userCollection.findOne({ email });
+      const messageCount = await allMsgCollection.countDocuments({ email });
+
+      if (user?.membership !== 'member' && messageCount >= 5) {
+        return res.status(403).send({ message: 'You have reached the maximum number of posts allowed.' });
+      }
+
+      msg.postTime = new Date().toISOString();
       const result = await allMsgCollection.insertOne(msg);
       res.send(result);
-  });  
+    });
 
     app.patch('/allMsg/upvote/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = { $inc: { upvote: 1 } };
-      const result = await allMsgCollection.updateOne(filter, updateDoc);
+      const result = await allMsgCollection.updateOne({ _id: new ObjectId(id) }, { $inc: { upvote: 1 } });
       res.send(result);
     });
 
     app.patch('/allMsg/downvote/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = { $inc: { downvote: 1 } };
-      const result = await allMsgCollection.updateOne(filter, updateDoc);
+      const result = await allMsgCollection.updateOne({ _id: new ObjectId(id) }, { $inc: { downvote: 1 } });
       res.send(result);
     });
 
     app.patch('/allMsg/commentsCount/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = { $inc: { commentsCount: 1 } };
-      const result = await allMsgCollection.updateOne(filter, updateDoc);
+      const result = await allMsgCollection.updateOne({ _id: new ObjectId(id) }, { $inc: { commentsCount: 1 } });
       res.send(result);
     });
 
+    app.delete('/allMsg/:id', async (req, res) => {
+      const id = req.params.id;
+      const result = await allMsgCollection.deleteOne({ _id: new ObjectId(id) });
+      res.send(result);
+    });
 
-    // comments
-
+    // Comments routes
     app.post('/comments', async (req, res) => {
       const comment = req.body;
       const result = await commentsCollection.insertOne(comment);
       res.send(result);
-    })
+    });
 
-
-    // notification
+    // Notification routes
     app.get('/notification', async (req, res) => {
-      const result = await notificationCollection.find().toArray();
-      res.send(result);
-    })
+      const notifications = await notificationCollection.find().toArray();
+      res.send(notifications);
+    });
 
     app.post('/notification', async (req, res) => {
-      const singleNotification = req.body;
-      const result = await notificationCollection.insertOne(singleNotification);
+      const notification = req.body;
+      const result = await notificationCollection.insertOne(notification);
       res.send(result);
-    })
+    });
 
-    // payment intent
+    // Payment intent route
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
-
       const amount = parseInt(price * 100);
-      console.log(amount, "amount inside the");
-
-      // Create a PaymentIntent with the order amount and currency
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
+        amount,
         currency: "usd",
         payment_method_types: ['card']
       });
-
-      res.send({
-        clientSecret: paymentIntent.client_secret,
-      });
+      res.send({ clientSecret: paymentIntent.client_secret });
     });
-
-
-
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -231,11 +200,10 @@ async function run() {
 }
 run().catch(console.dir);
 
-
 app.get('/', (req, res) => {
-  res.send('DialogueDock is running')
-})
+  res.send('DialogueDock is running');
+});
 
 app.listen(port, () => {
   console.log(`DialogueDock is sitting on port ${port}`);
-})
+});
