@@ -160,6 +160,12 @@ async function run() {
     });
 
     // Comments routes
+
+    app.get('/comments', async (req, res) => {
+      const allComments = await commentsCollection.find().toArray();
+      res.send(allComments);
+    });
+
     app.post('/comments', async (req, res) => {
       const comment = req.body;
       const result = await commentsCollection.insertOne(comment);
